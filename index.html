@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Earning</title>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script> <!-- For icons -->
+    <style>
+        /* General Styling */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+        :root {
+            --primary-color: #4A90E2;
+            --secondary-color: #50E3C2;
+            --background-color: #f0f2f5;
+            --card-background: #ffffff;
+            --text-color: #333;
+            --light-text-color: #777;
+            --gradient-start: #5e72e4;
+            --gradient-end: #825ee4;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--card-background);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            min-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .screen {
+            display: none;
+            padding: 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .screen.active {
+            display: block;
+        }
+        
+        /* Loading Spinner */
+        .loader-wrapper {
+            position: absolute; /* Changed from fixed to be contained in mobile-container */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* General UI Elements */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .btn-primary {
+            background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+            color: white;
+            box-shadow: 0 4px 10px rgba(94, 114, 228, 0.4);
+        }
+        
+        .btn-secondary {
+            background-color: #e9ecef;
+            color: var(--text-color);
+        }
+        
+        .card {
+            background-color: var(--card-background);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        /* Dashboard Screen */
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header p {
+            margin: 0;
+            color: var(--light-text-color);
+        }
+        .header h2 {
+            margin: 5px 0 0 0;
+            font-size: 1.5em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .stat-card {
+            background-color: #f8f9fe;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #eef;
+        }
+        .stat-card h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.2em;
+        }
+        .stat-card p {
+            margin: 0;
+            color: var(--light-text-color);
+        }
+        .stat-card .today-gain {
+            color: #28a745;
+            font-size: 0.9em;
+        }
+
+        .refer-card {
+            background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-end));
+            color: white;
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        .refer-card h3 {
+            margin: 0 0 10px 0;
+        }
+
+        /* Common Navigation/Bottom Bar */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            background-color: #ffffff;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-item {
+            cursor: pointer;
+            text-align: center;
+            color: var(--light-text-color);
+            font-size: 12px;
+        }
+
+        .nav-item.active {
+            color: var(--primary-color);
+        }
+
+        /* Earning Screen */
+        .earning-methods-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .method-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .method-card:hover {
+            transform: translateY(-5px);
+        }
+        .method-card h4 {
+            margin: 10px 0 5px 0;
+        }
+        .method-card p {
+            font-size: 0.8em;
+            color: var(--light-text-color);
+            margin: 0;
+        }
+        .method-card.video-ads { background-color: #e7f0ff; }
+        .method-card.lucky-picker { background-color: #fff8e1; }
+        .method-card.short-task { background-color: #e0f8f0; }
+        .method-card.tap-game { background-color: #fde7f4; }
+        
+        /* Ad Watching Screen */
+        .ad-screen-content {
+            text-align: center;
+        }
+        .ad-progress-card {
+            background-color: #f8f9fe;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .ad-progress-card h4 {
+            margin: 0 0 15px 0;
+            color: var(--light-text-color);
+        }
+        .ad-progress-card .progress-text {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--gradient-start);
+        }
+
+        /* Simulated Ad View */
+        #ad-view {
+            text-align: center;
+            padding: 30px;
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            background-color: #fafafa;
+        }
+        #ad-view h3 {
+            color: var(--text-color);
+        }
+        #ad-view p {
+            color: var(--light-text-color);
+        }
+        #ad-timer {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 15px 0;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="mobile-container">
+        <!-- Loading Spinner - Shuru te loader dekhabe -->
+        <div class="loader-wrapper" id="loader">
+            <div class="loader"></div>
+            <p>Loading...</p>
+        </div>
+
+        <!-- Main App Content (hidden until logged in) -->
+        <div id="app-content" style="display: none; flex-grow: 1; display: flex; flex-direction: column;">
+            
+            <!-- Main Dashboard Screen -->
+            <div id="dashboard-screen" class="screen">
+                <div class="header">
+                    <p>Welcome back,</p>
+                    <h2 id="user-name">User</h2>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3><span id="usd-balance">0.000</span> USDT</h3>
+                        <p>USD Balance</p>
+                        <span class="today-gain" id="usd-today">+0.000</span>
+                    </div>
+                    <div class="stat-card">
+                        <h3><span id="lmt-balance">0</span> LMT</h3>
+                        <p>LMT Balance</p>
+                        <span class="today-gain" id="lmt-today">+0</span>
+                    </div>
+                    <div class="stat-card">
+                        <h3><span id="referrals-count">0</span></h3>
+                        <p>Referrals</p>
+                        <span class="today-gain">+0 this week</span>
+                    </div>
+                    <div class="stat-card">
+                        <h3><span id="ads-viewed">0</span></h3>
+                        <p>Ads Viewed</p>
+                        <span class="today-gain" id="ads-today">+0 today</span>
+                    </div>
+                </div>
+
+                <div class="refer-card">
+                    <h3>Refer & Earn</h3>
+                    <p>Invite friends and earn 11% commission on every successful referral.</p>
+                </div>
+                 <button class="btn btn-secondary" onclick="showScreen('earning-screen')">Start Earning</button>
+            </div>
+
+            <!-- Earning Methods Screen -->
+            <div id="earning-screen" class="screen">
+                <h2>Earning Methods</h2>
+                <div class="earning-methods-grid">
+                    <div class="method-card video-ads" onclick="showScreen('ad-watching-screen')">
+                        <h4>Video Ads</h4>
+                        <p>Watch and earn</p>
+                    </div>
+                    <div class="method-card lucky-picker" onclick="alert('Lucky Picker coming soon!')">
+                        <h4>Lucky Picker</h4>
+                        <p>Pick a money card</p>
+                    </div>
+                    <div class="method-card short-task" onclick="alert('Short Tasks coming soon!')">
+                        <h4>Short Task</h4>
+                        <p>Complete short tasks</p>
+                    </div>
+                    <div class="method-card tap-game" onclick="alert('Tap Game coming soon!')">
+                        <h4>Tap Game</h4>
+                        <p>Tap to collect coins</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ad Watching Screen -->
+            <div id="ad-watching-screen" class="screen ad-screen-content">
+                <h2>Daily Earning</h2>
+                <p>Earn coins by watching short video advertisements</p>
+                <div class="card">
+                    <p>15 sec = 0.001 USDT</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="ad-progress-card">
+                        <h4>DAILY LIMIT</h4>
+                        <p class="progress-text"><span id="daily-ads-watched">0</span>/150</p>
+                    </div>
+                     <div class="ad-progress-card">
+                        <h4>HOURLY LIMIT</h4>
+                        <p class="progress-text"><span id="hourly-ads-watched">0</span>/50</p>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="start-watching-ads-btn">Start Watching Ads</button>
+                
+                <div id="ad-view" style="display: none; margin-top: 20px;">
+                    <h3>Watching a simulated Ad...</h3>
+                    <p>This is a placeholder for a real ad.</p>
+                    <div id="ad-timer">15</div>
+                    <p>Please wait for the timer to finish.</p>
+                </div>
+            </div>
+
+            <!-- Withdraw Screen -->
+            <div id="withdraw-screen" class="screen">
+                <h2>Withdraw</h2>
+                <div class="card">
+                    <p>Choose your withdraw method:</p>
+                    <h4>USDT (TRC20)</h4>
+                    <p>Min: 5 USDT</p>
+                </div>
+                <input type="text" placeholder="Use USDT TRC20 Address">
+                <input type="text" placeholder="Enter amount (USDT)">
+                <button class="btn btn-primary" onclick="alert('Withdrawal system is for demonstration only.')">Confirm Withdraw</button>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profile-screen" class="screen">
+                <h2>Profile</h2>
+                <div class="card">
+                    <h3 id="profile-name">User Name</h3>
+                    <p>Balance: <span id="profile-usd-balance">0.000</span> USDT</p>
+                    <p>Account Age: <span id="profile-age">0</span> minutes</p>
+                </div>
+                <button class="btn btn-secondary" onclick="alert('Referral Leaderboard coming soon!')">Referral Leaderboard</button>
+            </div>
+            
+            <!-- Bottom Navigation -->
+            <div class="bottom-nav">
+                <div class="nav-item active" data-screen="dashboard-screen">
+                    <span>Home</span>
+                </div>
+                <div class="nav-item" data-screen="earning-screen">
+                    <span>Earn</span>
+                </div>
+                <div class="nav-item" data-screen="withdraw-screen">
+                    <span>Withdraw</span>
+                </div>
+                <div class="nav-item" data-screen="profile-screen">
+                    <span>Profile</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIGURATION
+        // Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyA09SxLGy34nD0I1r4QX8lJzvwXiPadD9Q",
+  authDomain: "tg-earning-95809.firebaseapp.com",
+  databaseURL: "https://tg-earning-95809-default-rtdb.firebaseio.com",
+  projectId: "tg-earning-95809",
+  storageBucket: "tg-earning-95809.firebasestorage.app",
+  messagingSenderId: "570476548132",
+  appId: "1:570476548132:web:57d53794ad545a0b4248b1"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // DOM Elements
+        const loader = document.getElementById('loader');
+        const appContent = document.getElementById('app-content');
+        const screens = document.querySelectorAll('#app-content .screen');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        // --- APP LOGIC ---
+
+        let currentUser = null;
+        let userData = null;
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                // User is signed in anonymously.
+                currentUser = user;
+                
+                // Check if user document exists in Firestore.
+                const userRef = db.collection('users').doc(user.uid);
+                const doc = await userRef.get();
+
+                if (!doc.exists) {
+                    // Ei user notun, tai tar jonno database e document toiri korchi.
+                    // This is a new user, so we are creating a document for them in the database.
+                    await userRef.set({
+                        name: `User ${user.uid.substring(0, 6)}`, // ekta temporary nam
+                        usdBalance: 0,
+                        lmtBalance: 0,
+                        referrals: 0,
+                        adsViewedToday: 0,
+                        lastAdViewDate: new Date().toISOString().split('T')[0],
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                // User data shonar jonno listener start korchi.
+                listenToUserData();
+                showScreen('dashboard-screen');
+                
+            } else {
+                // User sign in kora nei, tai anonymously sign in korano hocche.
+                // The user is not signed in, so we are signing them in anonymously.
+                auth.signInAnonymously().catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                    alert("Could not connect to the server. Please refresh.");
+                });
+            }
+        });
+        
+        function listenToUserData() {
+            if (!currentUser) return;
+            db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
+                if(doc.exists) {
+                    userData = doc.data();
+                    updateUI();
+                    // Hide loader and show app content once data is loaded for the first time
+                    loader.style.display = 'none';
+                    appContent.style.display = 'flex';
+                }
+            }, err => {
+                console.error("Error fetching user data:", err);
+            });
+        }
+        
+        function updateUI() {
+            if (!userData) return;
+            
+            // Check if we need to reset daily ad count
+            const today = new Date().toISOString().split('T')[0];
+            if (userData.lastAdViewDate !== today) {
+                db.collection('users').doc(currentUser.uid).update({ 
+                    adsViewedToday: 0, 
+                    lastAdViewDate: today 
+                });
+            }
+
+            // Dashboard
+            document.getElementById('user-name').innerText = userData.name;
+            document.getElementById('usd-balance').innerText = userData.usdBalance.toFixed(4);
+            document.getElementById('lmt-balance').innerText = userData.lmtBalance;
+            document.getElementById('referrals-count').innerText = userData.referrals;
+            document.getElementById('ads-viewed').innerText = userData.adsViewedToday;
+            document.getElementById('ads-today').innerText = `+${userData.adsViewedToday} today`;
+
+            // Profile
+            document.getElementById('profile-name').innerText = userData.name;
+            document.getElementById('profile-usd-balance').innerText = userData.usdBalance.toFixed(4);
+            if (userData.createdAt) {
+                const accountAge = Math.round((new Date() - userData.createdAt.toDate()) / (1000 * 60));
+                document.getElementById('profile-age').innerText = `${accountAge} minutes`;
+            }
+            
+            // Ad Watching Screen
+            document.getElementById('daily-ads-watched').innerText = userData.adsViewedToday;
+        }
+        
+        // --- AD WATCHING SIMULATION ---
+        const startAdsBtn = document.getElementById('start-watching-ads-btn');
+        const adView = document.getElementById('ad-view');
+        const adTimer = document.getElementById('ad-timer');
+
+        startAdsBtn.addEventListener('click', () => {
+            if(userData.adsViewedToday >= 150) {
+                alert("You have reached your daily limit of 150 ads.");
+                return;
+            }
+
+            startAdsBtn.disabled = true;
+            adView.style.display = 'block';
+
+            let timeLeft = 15;
+            adTimer.innerText = timeLeft;
+
+            const timerInterval = setInterval(() => {
+                timeLeft--;
+                adTimer.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    adView.style.display = 'none';
+                    startAdsBtn.disabled = false;
+                    creditUserForAd();
+                }
+            }, 1000);
+        });
+
+        function creditUserForAd() {
+            if (!currentUser) return;
+            
+            const newBalance = (userData.usdBalance || 0) + 0.001;
+            const newAdCount = (userData.adsViewedToday || 0) + 1;
+            
+            db.collection('users').doc(currentUser.uid).update({
+                usdBalance: newBalance,
+                adsViewedToday: newAdCount
+            }).then(() => {
+                console.log("User credited 0.001 USDT");
+            }).catch(error => {
+                console.error("Error updating user balance: ", error);
+            });
+        }
+
+
+        // --- SCREEN NAVIGATION ---
+        function showScreen(screenId) {
+            screens.forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.screen === screenId) {
+                    item.classList.add('active');
+                }
+            });
+        }
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                showScreen(item.dataset.screen);
+            });
+        });
+
+    </script>
+
+</body>
+</html>
