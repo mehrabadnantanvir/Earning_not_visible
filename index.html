@@ -419,29 +419,7 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
     <script>
-        // IMPORTANT: REPLACE WITH YOUR FIREBASE PROJECT CONFIGURATION
-        // Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA09SxLGy34nD0I1r4QX8lJzvwXiPadD9Q",
-  authDomain: "tg-earning-95809.firebaseapp.com",
-  databaseURL: "https://tg-earning-95809-default-rtdb.firebaseio.com",
-  projectId: "tg-earning-95809",
-  storageBucket: "tg-earning-95809.firebasestorage.app",
-  messagingSenderId: "570476548132",
-  appId: "1:570476548132:web:57d53794ad545a0b4248b1"
-};
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
         // DOM Elements
         const loader = document.getElementById('loader');
         const appContent = document.getElementById('app-content');
@@ -453,60 +431,49 @@ const firebaseConfig = {
         let currentUser = null;
         let userData = null;
 
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                // User is signed in anonymously.
-                currentUser = user;
-                
-                // Check if user document exists in Firestore.
-                const userRef = db.collection('users').doc(user.uid);
-                const doc = await userRef.get();
+        // Load or initialize user data from localStorage
+        function initApp() {
+            let storedUser = localStorage.getItem('currentUser');
+            if (!storedUser) {
+                // Generate a unique user ID
+                const uid = Math.random().toString(36).substring(2) + Date.now().toString(36);
+                currentUser = { uid: uid };
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
-                if (!doc.exists) {
-                    // Ei user notun, tai tar jonno database e document toiri korchi.
-                    // This is a new user, so we are creating a document for them in the database.
-                    const today = new Date().toISOString().split('T')[0];
-                    const currentHour = new Date().getHours();
-                    await userRef.set({
-                        name: `User ${user.uid.substring(0, 6)}`, // ekta temporary nam
-                        usdBalance: 0,
-                        lmtBalance: 0,
-                        referrals: 0,
-                        adsViewedToday: 0,
-                        adsViewedThisHour: 0,
-                        lastAdViewDate: today,
-                        lastAdViewHour: currentHour,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-                
-                // User data shonar jonno listener start korchi.
-                listenToUserData();
-                showScreen('dashboard-screen');
-                
+                const today = new Date().toISOString().split('T')[0];
+                const currentHour = new Date().getHours();
+                userData = {
+                    name: `User ${uid.substring(0, 6)}`,
+                    usdBalance: 0,
+                    lmtBalance: 0,
+                    referrals: 0,
+                    adsViewedToday: 0,
+                    adsViewedThisHour: 0,
+                    lastAdViewDate: today,
+                    lastAdViewHour: currentHour,
+                    createdAt: new Date().toISOString()
+                };
+                saveUserData();
             } else {
-                // User sign in kora nei, tai anonymously sign in korano hocche.
-                // The user is not signed in, so we are signing them in anonymously.
-                auth.signInAnonymously().catch((error) => {
-                    console.error("Anonymous sign-in failed:", error);
-                    alert("Could not connect to the server. Please refresh.");
-                });
-            }
-        });
-        
-        function listenToUserData() {
-            if (!currentUser) return;
-            db.collection('users').doc(currentUser.uid).onSnapshot(doc => {
-                if(doc.exists) {
-                    userData = doc.data();
-                    updateUI();
-                    // Hide loader and show app content once data is loaded for the first time
-                    loader.style.display = 'none';
-                    appContent.style.display = 'flex';
+                currentUser = JSON.parse(storedUser);
+                const storedData = localStorage.getItem('userData');
+                if (storedData) {
+                    userData = JSON.parse(storedData);
+                } else {
+                    // If userData not found, reset
+                    initApp();
+                    return;
                 }
-            }, err => {
-                console.error("Error fetching user data:", err);
-            });
+            }
+
+            updateUI();
+            loader.style.display = 'none';
+            appContent.style.display = 'flex';
+            showScreen('dashboard-screen');
+        }
+
+        function saveUserData() {
+            localStorage.setItem('userData', JSON.stringify(userData));
         }
         
         function updateUI() {
@@ -515,19 +482,17 @@ const firebaseConfig = {
             // Check if we need to reset daily ad count
             const today = new Date().toISOString().split('T')[0];
             if (userData.lastAdViewDate !== today) {
-                db.collection('users').doc(currentUser.uid).update({ 
-                    adsViewedToday: 0, 
-                    lastAdViewDate: today 
-                });
+                userData.adsViewedToday = 0;
+                userData.lastAdViewDate = today;
+                saveUserData();
             }
 
             // Check if we need to reset hourly ad count
             const currentHour = new Date().getHours();
             if (userData.lastAdViewHour !== currentHour) {
-                db.collection('users').doc(currentUser.uid).update({ 
-                    adsViewedThisHour: 0, 
-                    lastAdViewHour: currentHour 
-                });
+                userData.adsViewedThisHour = 0;
+                userData.lastAdViewHour = currentHour;
+                saveUserData();
             }
 
             // Dashboard
@@ -542,10 +507,8 @@ const firebaseConfig = {
             // Profile
             document.getElementById('profile-name').innerText = userData.name;
             document.getElementById('profile-usd-balance').innerText = userData.usdBalance.toFixed(4);
-            if (userData.createdAt) {
-                const accountAge = Math.round((new Date() - userData.createdAt.toDate()) / (1000 * 60));
-                document.getElementById('profile-age').innerText = `${accountAge} minutes`;
-            }
+            const accountAge = Math.round((new Date() - new Date(userData.createdAt)) / (1000 * 60));
+            document.getElementById('profile-age').innerText = `${accountAge} minutes`;
             
             // Ad Watching Screen
             document.getElementById('daily-ads-watched').innerText = userData.adsViewedToday;
@@ -588,19 +551,13 @@ const firebaseConfig = {
         function creditUserForAd() {
             if (!currentUser) return;
             
-            const newBalance = (userData.usdBalance || 0) + 0.001;
-            const newAdCountDaily = (userData.adsViewedToday || 0) + 1;
-            const newAdCountHourly = (userData.adsViewedThisHour || 0) + 1;
+            userData.usdBalance = (userData.usdBalance || 0) + 0.001;
+            userData.adsViewedToday = (userData.adsViewedToday || 0) + 1;
+            userData.adsViewedThisHour = (userData.adsViewedThisHour || 0) + 1;
             
-            db.collection('users').doc(currentUser.uid).update({
-                usdBalance: newBalance,
-                adsViewedToday: newAdCountDaily,
-                adsViewedThisHour: newAdCountHourly
-            }).then(() => {
-                console.log("User credited 0.001 USDT");
-            }).catch(error => {
-                console.error("Error updating user balance: ", error);
-            });
+            saveUserData();
+            updateUI();
+            console.log("User credited 0.001 USDT");
         }
 
 
@@ -624,6 +581,9 @@ const firebaseConfig = {
                 showScreen(item.dataset.screen);
             });
         });
+
+        // Initialize the app
+        initApp();
 
     </script>
 
