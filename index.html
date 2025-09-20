@@ -286,7 +286,7 @@
         </div>
 
         <!-- Main App Content (hidden until logged in) -->
-        <div id="app-content" style="display: none; flex-grow: 1; display: flex; flex-direction: column;">
+        <div id="app-content" style="display: none; flex-grow: 1; flex-direction: column;">
             
             <!-- Main Dashboard Screen -->
             <div id="dashboard-screen" class="screen">
@@ -465,13 +465,17 @@ const firebaseConfig = {
                 if (!doc.exists) {
                     // Ei user notun, tai tar jonno database e document toiri korchi.
                     // This is a new user, so we are creating a document for them in the database.
+                    const today = new Date().toISOString().split('T')[0];
+                    const currentHour = new Date().getHours();
                     await userRef.set({
                         name: `User ${user.uid.substring(0, 6)}`, // ekta temporary nam
                         usdBalance: 0,
                         lmtBalance: 0,
                         referrals: 0,
                         adsViewedToday: 0,
-                        lastAdViewDate: new Date().toISOString().split('T')[0],
+                        adsViewedThisHour: 0,
+                        lastAdViewDate: today,
+                        lastAdViewHour: currentHour,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
@@ -517,6 +521,15 @@ const firebaseConfig = {
                 });
             }
 
+            // Check if we need to reset hourly ad count
+            const currentHour = new Date().getHours();
+            if (userData.lastAdViewHour !== currentHour) {
+                db.collection('users').doc(currentUser.uid).update({ 
+                    adsViewedThisHour: 0, 
+                    lastAdViewHour: currentHour 
+                });
+            }
+
             // Dashboard
             document.getElementById('user-name').innerText = userData.name;
             document.getElementById('usd-balance').innerText = userData.usdBalance.toFixed(4);
@@ -524,6 +537,7 @@ const firebaseConfig = {
             document.getElementById('referrals-count').innerText = userData.referrals;
             document.getElementById('ads-viewed').innerText = userData.adsViewedToday;
             document.getElementById('ads-today').innerText = `+${userData.adsViewedToday} today`;
+            document.getElementById('usd-today').innerText = `+${(userData.adsViewedToday * 0.001).toFixed(3)}`;
 
             // Profile
             document.getElementById('profile-name').innerText = userData.name;
@@ -535,6 +549,7 @@ const firebaseConfig = {
             
             // Ad Watching Screen
             document.getElementById('daily-ads-watched').innerText = userData.adsViewedToday;
+            document.getElementById('hourly-ads-watched').innerText = userData.adsViewedThisHour;
         }
         
         // --- AD WATCHING SIMULATION ---
@@ -545,6 +560,10 @@ const firebaseConfig = {
         startAdsBtn.addEventListener('click', () => {
             if(userData.adsViewedToday >= 150) {
                 alert("You have reached your daily limit of 150 ads.");
+                return;
+            }
+            if(userData.adsViewedThisHour >= 50) {
+                alert("You have reached your hourly limit of 50 ads.");
                 return;
             }
 
@@ -570,11 +589,13 @@ const firebaseConfig = {
             if (!currentUser) return;
             
             const newBalance = (userData.usdBalance || 0) + 0.001;
-            const newAdCount = (userData.adsViewedToday || 0) + 1;
+            const newAdCountDaily = (userData.adsViewedToday || 0) + 1;
+            const newAdCountHourly = (userData.adsViewedThisHour || 0) + 1;
             
             db.collection('users').doc(currentUser.uid).update({
                 usdBalance: newBalance,
-                adsViewedToday: newAdCount
+                adsViewedToday: newAdCountDaily,
+                adsViewedThisHour: newAdCountHourly
             }).then(() => {
                 console.log("User credited 0.001 USDT");
             }).catch(error => {
